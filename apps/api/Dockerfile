@@ -2,17 +2,15 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy entire monorepo
-COPY package*.json ./
-COPY turbo.json ./
-COPY packages/ ./packages/
-COPY apps/api/ ./apps/api/
+# Copy only API app (not UI packages it doesn't need)
+COPY apps/api/package*.json ./apps/api/
 
-# Install all dependencies including devDependencies
+# Install dependencies for API only
+WORKDIR /app/apps/api
 RUN npm install
 
-# Build the API
-WORKDIR /app/apps/api
+# Copy API source and build
+COPY apps/api/ ./
 RUN npm run build
 
 # Production stage
