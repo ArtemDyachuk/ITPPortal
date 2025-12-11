@@ -1,8 +1,16 @@
-FROM node:20-slim AS builder
+# syntax=docker.io/docker/dockerfile:1
 
+FROM node:20-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy root package files for workspace resolution
+# Upgrade npm to fix "Exit handler never called" bug
+RUN npm install -g npm@latest
+
+# Copy package files from monorepo root
 COPY package.json package-lock.json ./
 COPY turbo.json ./
 
@@ -10,22 +18,37 @@ COPY turbo.json ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-# Install all dependencies with legacy peer deps to avoid npm bugs
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm ci
 
-# Build the web app
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/packages ./packages
+COPY --from=deps /app/apps/web ./apps/web
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/turbo.json ./turbo.json
+
 WORKDIR /app/apps/web
 RUN npm run build
 
-# Production stage
-FROM node:20-slim AS runner
-
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Copy standalone build output
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/web/public ./public
+
+# Automatically leverage output traces to reduce image size
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+USER nextjs
 
 EXPOSE 4201
 
