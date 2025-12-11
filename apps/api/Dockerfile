@@ -1,33 +1,40 @@
-FROM node:18-alpine AS builder
+FROM node:18-alpine AS base
 
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+# Install turbo globally
+RUN npm install turbo --global
+COPY . .
+RUN turbo prune --scope=api --docker
+
+FROM base AS installer
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy root package.json and lockfile
-COPY package*.json ./
-COPY turbo.json ./
-
-# Copy workspace configs
-COPY packages/ ./packages/
-COPY apps/api/package*.json ./apps/api/
-
-# Install dependencies
+# First install dependencies (as they change less often)
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 
-# Copy source
-COPY apps/api/ ./apps/api/
+# Build the project and its dependencies
+COPY --from=builder /app/out/full/ .
+COPY turbo.json turbo.json
 
-# Build
 RUN npx turbo run build --filter=api
 
-FROM node:18-alpine AS runner
-
+FROM base AS runner
 WORKDIR /app
 
-# Copy built app
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
-COPY --from=builder /app/apps/api/package*.json ./
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nestjs
+USER nestjs
+
+COPY --from=installer /app/apps/api/dist ./dist
+COPY --from=installer /app/apps/api/node_modules ./node_modules
+COPY --from=installer /app/apps/api/package.json ./package.json
 
 EXPOSE 3001
 
-CMD ["npm", "run", "start:prod"]
+CMD ["node", "dist/main"]

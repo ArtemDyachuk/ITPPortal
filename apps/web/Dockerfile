@@ -1,33 +1,46 @@
-FROM node:18-alpine AS builder
+FROM node:18-alpine AS base
 
+FROM base AS builder
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+# Install turbo globally
+RUN npm install turbo --global
+COPY . .
+RUN turbo prune --scope=web --docker
+
+FROM base AS installer
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy root package.json and lockfile
-COPY package*.json ./
-COPY turbo.json ./
-
-# Copy workspace configs
-COPY packages/ ./packages/
-COPY apps/web/package*.json ./apps/web/
-
-# Install dependencies
+# First install dependencies (as they change less often)
+COPY --from=builder /app/out/json/ .
+COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 
-# Copy source
-COPY apps/web/ ./apps/web/
+# Build the project and its dependencies
+COPY --from=builder /app/out/full/ .
+COPY turbo.json turbo.json
 
-# Build
 RUN npx turbo run build --filter=web
 
-FROM node:18-alpine AS runner
-
+FROM base AS runner
 WORKDIR /app
 
-# Copy built app
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./.next/static
-COPY --from=builder /app/apps/web/public ./public
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+USER nextjs
+
+COPY --from=installer /app/apps/web/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+COPY --from=installer --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=installer --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 
 EXPOSE 4201
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
