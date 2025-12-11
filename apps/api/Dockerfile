@@ -1,4 +1,4 @@
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 FROM base AS builder
 RUN apk add --no-cache libc6-compat
@@ -17,7 +17,6 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 RUN npm install turbo --global
-RUN npm install -g @nestjs/cli
 
 # Build the project and its dependencies
 COPY --from=builder /app/out/full/ .
