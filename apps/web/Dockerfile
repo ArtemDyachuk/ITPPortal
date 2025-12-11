@@ -1,19 +1,22 @@
 FROM node:20-slim AS builder
 
+# Install pnpm
+RUN npm install -g pnpm
+
 WORKDIR /app
 
-# Copy entire monorepo
-COPY package*.json ./
+# Copy package files
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
 COPY turbo.json ./
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-# Install all dependencies
-RUN npm install
+# Install all dependencies with pnpm
+RUN pnpm install --no-frozen-lockfile
 
 # Build the web app
 WORKDIR /app/apps/web
-RUN npm run build
+RUN pnpm build
 
 # Production stage
 FROM node:20-slim AS runner

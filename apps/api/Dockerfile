@@ -2,15 +2,16 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy only API app (not UI packages it doesn't need)
-COPY apps/api/package*.json ./apps/api/
+# Copy API package files
+COPY apps/api/package*.json ./
 
-# Install dependencies for API only
-WORKDIR /app/apps/api
-RUN npm install
+# Install dependencies with legacy peer deps flag
+RUN npm install --legacy-peer-deps
 
-# Copy API source and build
+# Copy API source
 COPY apps/api/ ./
+
+# Build
 RUN npm run build
 
 # Production stage
@@ -18,12 +19,10 @@ FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# Copy built output and production dependencies
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package*.json ./
-
-# Install only production dependencies
-RUN npm install --omit=dev
+# Copy built output
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
 EXPOSE 3001
 
