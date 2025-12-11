@@ -37,3 +37,19 @@ jobs:
         file: ./apps/web/Dockerfile
         push: true
         tags: ${{ secrets.DOCKER_USERNAME }}/itp-web:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/app
+            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+            docker compose pull
+            docker compose up -d
