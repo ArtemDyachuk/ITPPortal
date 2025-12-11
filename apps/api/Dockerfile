@@ -17,6 +17,7 @@ COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN npm ci
 RUN npm install turbo --global
+RUN npm install -g @nestjs/cli
 
 # Build the project and its dependencies
 COPY --from=builder /app/out/full/ .
