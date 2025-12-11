@@ -1,47 +1,33 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS builder
 
-FROM base AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-# Install turbo globally
-RUN npm install turbo --global
-COPY . .
-RUN turbo prune --scope=web --docker
-
-FROM base AS installer
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# First install dependencies (as they change less often)
-COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/package-lock.json ./package-lock.json
-RUN npm ci
-RUN npm install turbo --global
+# Copy entire monorepo
+COPY package*.json ./
+COPY turbo.json ./
+COPY packages/ ./packages/
+COPY apps/web/ ./apps/web/
 
-# Build the project and its dependencies
-COPY --from=builder /app/out/full/ .
-COPY turbo.json turbo.json
+# Install all dependencies
+RUN npm install
 
-RUN turbo run build --filter=web
+# Build the web app
+WORKDIR /app/apps/web
+RUN npm run build
 
-FROM base AS runner
+# Production stage
+FROM node:20-slim AS runner
+
 WORKDIR /app
 
-# Don't run production as root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-USER nextjs
-
-COPY --from=installer /app/apps/web/public ./apps/web/public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-COPY --from=installer --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=installer --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+# Copy standalone build output
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/public ./apps/web/public
 
 EXPOSE 4201
+
+ENV PORT=4201
+ENV HOSTNAME="0.0.0.0"
 
 CMD ["node", "apps/web/server.js"]

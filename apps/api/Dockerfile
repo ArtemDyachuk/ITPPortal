@@ -1,40 +1,31 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS builder
 
-FROM base AS builder
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-# Install turbo globally
-RUN npm install turbo --global
-COPY . .
-RUN turbo prune --scope=api --docker
-
-FROM base AS installer
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# First install dependencies (as they change less often)
-COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/package-lock.json ./package-lock.json
-RUN npm ci
-RUN npm install turbo --global
+# Copy entire monorepo
+COPY package*.json ./
+COPY turbo.json ./
+COPY packages/ ./packages/
+COPY apps/api/ ./apps/api/
 
-# Build the project and its dependencies
-COPY --from=builder /app/out/full/ .
-COPY turbo.json turbo.json
+# Install all dependencies including devDependencies
+RUN npm install
 
-RUN turbo run build --filter=api
+# Build the API
+WORKDIR /app/apps/api
+RUN npm run build
 
-FROM base AS runner
+# Production stage
+FROM node:20-slim AS runner
+
 WORKDIR /app
 
-# Don't run production as root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
-USER nestjs
+# Copy built output and production dependencies
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package*.json ./
 
-COPY --from=installer /app/apps/api/dist ./dist
-COPY --from=installer /app/apps/api/node_modules ./node_modules
-COPY --from=installer /app/apps/api/package.json ./package.json
+# Install only production dependencies
+RUN npm install --omit=dev
 
 EXPOSE 3001
 
