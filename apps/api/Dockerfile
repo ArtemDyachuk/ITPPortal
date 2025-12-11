@@ -16,12 +16,13 @@ WORKDIR /app
 COPY --from=builder /app/out/json/ .
 COPY --from=builder /app/out/package-lock.json ./package-lock.json
 RUN npm ci
+RUN npm install turbo --global
 
 # Build the project and its dependencies
 COPY --from=builder /app/out/full/ .
 COPY turbo.json turbo.json
 
-RUN npx turbo run build --filter=api
+RUN turbo run build --filter=api
 
 FROM base AS runner
 WORKDIR /app
