@@ -1,0 +1,52 @@
+[
+  {
+    "id": "481130001",
+    "name": "Dallas Police Department",
+    "category": "police"
+  },
+  {
+    "id": "481130002",
+    "name": "Dallas Fire Department",
+    "category": "fire department"
+  },
+  {
+    "id": "480000001",
+    "name": "Texas Department of Transportation",
+    "category": "state"
+  },
+  {
+    "id": "210000100",
+    "name": "AT&T",
+    "category": "utility"
+  },
+  {
+    "id": "130067310",
+    "name": "Cobb Water",
+    "category": "utility"
+  },
+  {
+    "id": "999000101",
+    "name": "ABC Maintenance",
+    "category": "contractor"
+  },
+  {
+    "id": "999000201",
+    "name": "ABC Power Company",
+    "category": "utility"
+  },
+  {
+    "id": "330000001",
+    "name": "UPS",
+    "category": "logistics"
+  },
+  {
+    "id": "330000002",
+    "name": "Amazon Logistics",
+    "category": "logistics"
+  },
+  {
+    "id": "330000003",
+    "name": "FedEx",
+    "category": "logistics"
+  }
+]

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "construction",
+    "type": "Construction",
+    "name": "Construction",
+    "dataSourceIds": [
+      "480000001",
+      "999000101",
+      "999000201",
+      "330000001",
+      "330000002",
+      "330000003",
+      "210000100"
+    ]
+  },
+  {
+    "id": "accident",
+    "type": "Accident",
+    "name": "Accidents",
+    "dataSourceIds": [
+      "481130001",
+      "480000001",
+      "330000001",
+      "330000002",
+      "330000003",
+      "999000201"
+    ]
+  },
+  {
+    "id": "closure",
+    "type": "Closure",
+    "name": "Road Closures",
+    "dataSourceIds": [
+      "480000001",
+      "481130001",
+      "330000001",
+      "330000002",
+      "330000003",
+      "130067310"
+    ]
+  },
+  {
+    "id": "damage",
+    "type": "Damage",
+    "name": "Road Damage",
+    "dataSourceIds": [
+      "480000001",
+      "999000101",
+      "999000201",
+      "330000001",
+      "330000002",
+      "330000003",
+      "210000100",
+      "130067310"
+    ]
+  },
+  {
+    "id": "lowbridge",
+    "type": "Low Bridge",
+    "name": "Low Bridges",
+    "dataSourceIds": ["480000001"]
+  },
+  {
+    "id": "herounit",
+    "type": "Hero Unit",
+    "name": "Hero Units",
+    "dataSourceIds": ["480000001", "481130001"]
+  },
+  {
+    "id": "emergency",
+    "type": "Emergency Services",
+    "name": "Emergency Services",
+    "dataSourceIds": ["481130002", "481130001", "480000001"]
+  },
+  {
+    "id": "logistics",
+    "type": "logistics",
+    "name": "Logistics",
+    "dataSourceIds": [
+      "330000001",
+      "330000002",
+      "330000003"
+    ]
+  },
+  {
+    "id": "utility",
+    "type": "utility",
+    "name": "Utilities",
+    "dataSourceIds": [
+      "210000100",
+      "130067310",
+      "999000201"
+    ]
+  }
+]
