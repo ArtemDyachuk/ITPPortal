@@ -1,40 +1,31 @@
-# syntax=docker.io/docker/dockerfile:1
-
-FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Use Bun for reliable builds (npm has known bugs in Docker)
+FROM oven/bun:1-alpine AS deps
 WORKDIR /app
 
-# Upgrade npm to fix "Exit handler never called" bug
-RUN npm install -g npm@latest
-
-# Copy package files from monorepo root
-COPY package.json package-lock.json ./
+# Copy package files from monorepo
+COPY package.json bun.lock* ./
 COPY turbo.json ./
-
-# Copy workspace packages that web depends on
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with Bun
+RUN bun install
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# Build stage
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps/web ./apps/web
-COPY --from=deps /app/package.json ./package.json
-COPY --from=deps /app/turbo.json ./turbo.json
+COPY --from=deps /app/apps ./apps
+COPY --from=deps /app/package.json ./
+COPY --from=deps /app/turbo.json ./
 
 WORKDIR /app/apps/web
-RUN npm run build
+RUN bun run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# Production image
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -43,8 +34,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/apps/web/public ./public
-
-# Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
