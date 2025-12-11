@@ -1,22 +1,21 @@
 FROM node:20-slim AS builder
 
-# Install pnpm
-RUN npm install -g pnpm
-
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+# Copy root package files for workspace resolution
+COPY package.json package-lock.json ./
 COPY turbo.json ./
+
+# Copy workspace packages that web depends on
 COPY packages/ ./packages/
 COPY apps/web/ ./apps/web/
 
-# Install all dependencies with pnpm
-RUN pnpm install --no-frozen-lockfile
+# Install all dependencies with legacy peer deps to avoid npm bugs
+RUN npm install --legacy-peer-deps
 
 # Build the web app
 WORKDIR /app/apps/web
-RUN pnpm build
+RUN npm run build
 
 # Production stage
 FROM node:20-slim AS runner
