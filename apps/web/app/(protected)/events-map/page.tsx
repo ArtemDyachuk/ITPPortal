@@ -1,9 +1,8 @@
 "use client"
 
-import { useState, useMemo, useRef } from 'react';
-import { Map, OSMPolyline, POI } from '@repo/ui/map';
-import { CriticalEventsTable, CollapsiblePanel, type CriticalEvent, type CriticalEventsTableConfig } from '@repo/ui/events-viewer';
-import { FilterPanel } from '@repo/ui/events-viewer';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { Map, OSMPolyline, POI, MarkerCluster } from '@repo/ui/map';
+import { CriticalEvents, type CriticalEvent, type CriticalEventsTableConfig, DesktopFilters, MobileFilters, SourcesModal, MapOverlayButton, FiltersIcon, DataSourcesIcon } from '@repo/ui/events-viewer';
 import criticalEventsData from '@repo/ui/data/criticalEvents.json';
 import eventsData from '@repo/ui/data/events.json';
 import servicesData from '@repo/ui/data/services.json';
@@ -79,6 +78,22 @@ export default function EventsMapPage() {
       return acc;
     }, {} as Record<string, string>);
   }, [dataSources]);
+
+  // Mobile responsiveness
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const resolveIconUrl = (dataSourceId?: string) => {
     if (!dataSourceId) return undefined;
@@ -214,15 +229,8 @@ export default function EventsMapPage() {
     });
   }, [searchTerm, selectedType, selectedSeverity, services, enabledServices, sourceFilters, dataSourceCategoryMap]);
 
-  // Handle filter changes from CollapsiblePanel
-  const handleFilterChange = (filters: { search: string; type: string; severity: string }) => {
-    setSearchTerm(filters.search);
-    setSelectedType(filters.type);
-    setSelectedSeverity(filters.severity);
-  };
-
   // Handle panel expansion/collapse - trigger map resize
-  const handlePanelExpandChange = (expanded: boolean) => {
+  const handlePanelExpandChange = useCallback((expanded: boolean) => {
     setIsPanelExpanded(expanded);
     // Trigger map resize and reposition after a small delay to allow layout to settle
     if (mapInstanceRef.current) {
@@ -236,7 +244,7 @@ export default function EventsMapPage() {
         }
       }, 100);
     }
-  };
+  }, [mapBounds]);
 
   // Table configuration
   const eventsTableConfig: CriticalEventsTableConfig = {
@@ -298,14 +306,12 @@ export default function EventsMapPage() {
       width: '100%',
       gap: '1rem',
       padding: '1rem',
-      backgroundColor: '#f9fafb',
+      // background moved to Tailwind classes to support dark mode
     } as React.CSSProperties,
     filterColumn: {
       width: '250px',
       minWidth: '250px',
-      backgroundColor: 'white',
-      borderRadius: '0.5rem',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      // visual styles (bg/border/shadows) moved to Tailwind classes for dark mode support
       overflow: 'hidden',
     } as React.CSSProperties,
     contentWrapper: {
@@ -321,6 +327,7 @@ export default function EventsMapPage() {
       borderRadius: '0.5rem 0.5rem 0 0',
       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
       transition: 'flex 0.3s ease-in-out',
+      position: 'relative' as const,
     } as React.CSSProperties,
     eventsColumn: {
       flex: isPanelExpanded ? 0.7 : 0.3,
@@ -334,10 +341,10 @@ export default function EventsMapPage() {
   return (
     <div style={styles.container}>
       {/* Main Content - Filters and Map/Events */}
-      <main style={styles.mainContent}>
-        {/* Filter Panel - Fixed Width */}
-        <div style={styles.filterColumn}>
-          <FilterPanel 
+      <main style={styles.mainContent} className="bg-slate-50 dark:bg-slate-900 rounded-lg">
+        {/* Filter Panel - Fixed Width - Hidden on Mobile via CSS */}
+        <div className="hidden md:block bg-white dark:bg-slate-800 rounded-lg shadow-sm" style={styles.filterColumn}>
+          <DesktopFilters 
             enabledServices={enabledServices} 
             onServiceChange={setEnabledServices}
             statusFilters={statusFilters}
@@ -351,72 +358,111 @@ export default function EventsMapPage() {
         <div style={styles.contentWrapper}>
           {/* Map - 70% initially, 30% when expanded */}
           <div style={styles.mapColumn}>
+            {/* Mobile overlay buttons - visible below md */}
+            <div className="block md:hidden">
+              <MapOverlayButton
+                title="Filters"
+                onClick={() => setIsFilterModalOpen(true)}
+                position="top-right-inline"
+                icon={<FiltersIcon size={24} strokeWidth={2} color="white" />}
+              />
+              <MapOverlayButton
+                title="Data Sources"
+                onClick={() => setIsSourceModalOpen(true)}
+                position="top-right"
+                icon={<DataSourcesIcon size={24} strokeWidth={2} color="white" />}
+              />
+            </div>
             <Map 
               bounds={mapBounds}
               onMapInstanceReady={(mapInstance) => {
                 mapInstanceRef.current = mapInstance;
               }}
             >
+              <MarkerCluster>
+                {filteredMapEvents.map((event) => (
+                  <div key={event.id}>
+                    {/* POI marker at start of event path */}
+                    <POI 
+                      coordinates={event.path[0]!}
+                      eventType={event.type}
+                      title={event.name}
+                      iconUrl={resolveIconUrl(event.dataSourceId)}
+                      expectedEndTime={event.endDate}
+                      affectedDirection={event.affectedLanes}
+                      details={[
+                        `- Type: ${event.type}`,
+                        event.workType ? `- Work Type: ${event.workType}` : '',
+                        event.clearance ? `- Clearance: ${event.clearance}` : '',
+                        event.unitNumber ? `- Unit: ${event.unitNumber}` : '',
+                        event.unitsOnScene ? `- Units: ${event.unitsOnScene}` : ''
+                      ].filter(Boolean)}
+                      fullDescription={event.description}
+                    />
+                  </div>
+                ))}
+              </MarkerCluster>
+              {/* Render polylines outside of clustering */}
               {filteredMapEvents.map((event) => (
-                <div key={event.id}>
-                  {/* POI marker at start of event path */}
-                  <POI 
-                    coordinates={event.path[0]!}
-                    eventType={event.type}
-                    title={event.name}
-                    iconUrl={resolveIconUrl(event.dataSourceId)}
-                    expectedEndTime={event.endDate}
-                    affectedDirection={event.affectedLanes}
-                    details={[
-                      `- Type: ${event.type}`,
-                      event.workType ? `- Work Type: ${event.workType}` : '',
-                      event.clearance ? `- Clearance: ${event.clearance}` : '',
-                      event.unitNumber ? `- Unit: ${event.unitNumber}` : '',
-                      event.unitsOnScene ? `- Units: ${event.unitsOnScene}` : ''
-                    ].filter(Boolean)}
-                    fullDescription={event.description}
-                  />
-                  {/* Polyline for event path with same POI data */}
-                  <OSMPolyline
-                    path={event.path}
-                    strokeColor={event.severity === 'Critical' ? '#FF0000' : '#FFA500'}
-                    strokeOpacity={0.9}
-                    strokeWeight={8}
-                    title={event.name}
-                    expectedEndTime={event.endDate}
-                    affectedDirection={event.affectedLanes}
-                    details={[
-                      `- Type: ${event.type}`,
-                      event.workType ? `- Work Type: ${event.workType}` : '',
-                      event.clearance ? `- Clearance: ${event.clearance}` : '',
-                      event.unitNumber ? `- Unit: ${event.unitNumber}` : '',
-                      event.unitsOnScene ? `- Units: ${event.unitsOnScene}` : ''
-                    ].filter(Boolean)}
-                    fullDescription={event.description}
-                  />
-                </div>
+                <OSMPolyline
+                  key={`polyline-${event.id}`}
+                  path={event.path}
+                  strokeColor={event.severity === 'Critical' ? '#FF0000' : '#FFA500'}
+                  strokeOpacity={0.9}
+                  strokeWeight={8}
+                  title={event.name}
+                  expectedEndTime={event.endDate}
+                  affectedDirection={event.affectedLanes}
+                  details={[
+                    `- Type: ${event.type}`,
+                    event.workType ? `- Work Type: ${event.workType}` : '',
+                    event.clearance ? `- Clearance: ${event.clearance}` : '',
+                    event.unitNumber ? `- Unit: ${event.unitNumber}` : '',
+                    event.unitsOnScene ? `- Units: ${event.unitsOnScene}` : ''
+                  ].filter(Boolean)}
+                  fullDescription={event.description}
+                />
               ))}
             </Map>
           </div>
 
           {/* Events - 30% initially, 70% when expanded */}
           <div style={styles.eventsColumn}>
-            <CollapsiblePanel
-              title="Critical Events"
+            <CriticalEvents
+              events={filteredEvents}
+              config={eventsTableConfig}
+              isCompact={false}
+              search={searchTerm}
+              eventType={selectedType}
+              severity={selectedSeverity}
+              eventTypes={uniqueEventTypes}
+              onSearchChange={setSearchTerm}
+              onEventTypeChange={setSelectedType}
+              onSeverityChange={setSelectedSeverity}
               initialExpanded={isPanelExpanded}
               onExpandChange={handlePanelExpandChange}
-              onFilterChange={handleFilterChange}
-              eventTypes={uniqueEventTypes}
-            >
-              <CriticalEventsTable
-                events={filteredEvents}
-                config={eventsTableConfig}
-                isCompact={false}
-              />
-            </CollapsiblePanel>
+            />
           </div>
         </div>
       </main>
+
+      {/* Filter Modal for Mobile */}
+      <MobileFilters
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        enabledServices={enabledServices}
+        onServiceChange={setEnabledServices}
+        statusFilters={statusFilters}
+        onStatusFilterChange={(filters) => setStatusFilters(filters as { active: boolean; scheduled: boolean })}
+      />
+
+      {/* Source Modal for Mobile */}
+      <SourcesModal
+        isOpen={isSourceModalOpen}
+        onClose={() => setIsSourceModalOpen(false)}
+        sourceFilters={sourceFilters}
+        onSourceFilterChange={setSourceFilters}
+      />
     </div>
   );
 }

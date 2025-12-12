@@ -1,14 +1,11 @@
-export type EventSeverity = 'Critical' | 'Warning' | 'Info';
-export type EventType = 'Work Zone' | 'Road Closure' | 'Construction' | 'Accident' | 'Weather';
-
 export interface CriticalEvent {
   id: string | number;
   time: string;
   coordinates: string;
-  type: EventType | string;
+  type: string;
   city: string;
   count: number;
-  severity: EventSeverity | string;
+  severity: string;
   description?: string;
   expectedEndTime?: string;
   affectedDirection?: string;
@@ -30,10 +27,3 @@ export interface CriticalEventsTableConfig {
   onRowClick?: (event: CriticalEvent) => void;
 }
 
-export interface CollapsiblePanelConfig {
-  title: string;
-  initialExpanded?: boolean;
-  onExpandChange?: (expanded: boolean) => void;
-  maxHeight?: string;
-  collapsedHeight?: string;
-}

@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import React from 'react';
+import React, { useMemo } from 'react';
+import PopupContent from './PopupContent';
 
 const Polyline = dynamic(() => import('react-leaflet').then(mod => mod.Polyline), { ssr: false });
 const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
@@ -34,51 +35,32 @@ const OSMPolyline: React.FC<OSMPolylineProps> = ({
   details,
   fullDescription,
 }) => {
-  // Convert Google Maps format [lat, lng] to Leaflet format
-  const leafletPath = path.map((point) => [point.lat, point.lng] as [number, number]);
+  // Memoize path conversion to avoid recomputing on every render
+  const leafletPath = useMemo(
+    () => path.map((point) => [point.lat, point.lng] as [number, number]),
+    [path]
+  );
 
-  const color = strokeColor || '#FF0000';
-  const pathOptions = {
-    color,
-    weight: strokeWeight,
-    opacity: strokeOpacity,
-  };
-
-  const popupContent = (
-    <div style={{ maxWidth: '320px', minWidth: '250px', fontFamily: 'Arial, sans-serif' }}>
-      {title && <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>{title}</h3>}
-      {expectedEndTime && (
-        <div style={{ marginBottom: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Expected to end on</div>
-          <div style={{ background: '#e3f2fd', color: '#1976d2', padding: '4px 8px', borderRadius: '4px', display: 'inline-block', fontSize: '14px' }}>
-            {expectedEndTime}
-          </div>
-        </div>
-      )}
-      {affectedDirection && (
-        <div style={{ marginBottom: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Affected Direction</div>
-          <div style={{ background: '#fff3e0', color: '#f57c00', padding: '4px 8px', borderRadius: '4px', display: 'inline-block', fontSize: '14px' }}>
-            {affectedDirection}
-          </div>
-        </div>
-      )}
-      {details && details.length > 0 && (
-        <div style={{ marginBottom: '10px' }}>
-          {details.map((detail, index) => (
-            <div key={index} style={{ marginBottom: '4px' }}>• {detail}</div>
-          ))}
-        </div>
-      )}
-      {fullDescription && (
-        <div style={{ marginTop: '10px', color: '#555' }}>{fullDescription}</div>
-      )}
-    </div>
+  const pathOptions = useMemo(
+    () => ({
+      color: strokeColor || '#FF0000',
+      weight: strokeWeight,
+      opacity: strokeOpacity,
+    }),
+    [strokeColor, strokeWeight, strokeOpacity]
   );
 
   return (
     <Polyline positions={leafletPath} pathOptions={pathOptions}>
-      <Popup>{popupContent}</Popup>
+      <Popup autoPanPaddingTopLeft={[0, 80] as any} autoPanPadding={[12, 12] as any} className="leaflet-popup-theme">
+        <PopupContent
+          title={title}
+          expectedEndTime={expectedEndTime}
+          affectedDirection={affectedDirection}
+          details={details}
+          description={fullDescription}
+        />
+      </Popup>
     </Polyline>
   );
 };

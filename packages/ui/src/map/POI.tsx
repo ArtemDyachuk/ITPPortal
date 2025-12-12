@@ -1,9 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import type { Icon } from 'leaflet';
-import styles from './POI.module.css';
+import PopupContent from './PopupContent';
 
 const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
 const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
@@ -36,21 +36,31 @@ const getIconForEventType = (eventType?: string): string => {
     'Hero Unit': '/icons/Hero-Units.webp',
     'Emergency Services': '/icons/First-Responder.webp',
   };
-  
+
   return typeMap[eventType || ''] || '/icons/Accident.webp';
 };
 
-// Create custom marker icons with image URLs
-const createCustomIcon = async (iconUrl: string): Promise<Icon> => {
-  const leaflet = await import('leaflet');
-  const L = leaflet.default || leaflet;
-  return L.icon({
+// Module-level icon cache to avoid repeated leaflet imports and icon creation
+const iconCache = new Map<string, Icon>();
+let leafletModule: typeof import('leaflet') | null = null;
+
+const getOrCreateIcon = async (iconUrl: string): Promise<Icon> => {
+  const cached = iconCache.get(iconUrl);
+  if (cached) return cached;
+
+  if (!leafletModule) {
+    leafletModule = await import('leaflet');
+  }
+  const L = leafletModule as any;
+  const icon = L.icon({
     iconUrl,
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
     iconSize: [40, 40],
     iconAnchor: [20, 40],
     popupAnchor: [0, -40],
   });
+  iconCache.set(iconUrl, icon);
+  return icon;
 };
 
 const POI: React.FC<POIProps> = ({
@@ -66,55 +76,40 @@ const POI: React.FC<POIProps> = ({
 }) => {
   const [customIcon, setCustomIcon] = useState<Icon | null>(null);
 
+  const resolvedIconUrl = useMemo(
+    () => iconUrl || getIconForEventType(eventType),
+    [iconUrl, eventType]
+  );
+
   useEffect(() => {
-    const loadIcon = async () => {
-      const resolvedIconUrl = iconUrl || getIconForEventType(eventType);
-      const icon = await createCustomIcon(resolvedIconUrl);
-      setCustomIcon(icon);
-    };
-    loadIcon();
-  }, [iconUrl, eventType]);
+    let cancelled = false;
+    getOrCreateIcon(resolvedIconUrl).then((icon) => {
+      if (cancelled) return;
+      // Avoid setting state if the icon is identical to current to prevent unnecessary re-renders
+      setCustomIcon((prev) => (prev === icon ? prev : icon));
+    });
+    return () => { cancelled = true; };
+  }, [resolvedIconUrl]);
 
   if (!customIcon) return null;
 
-  const popupContent = (
-    <div style={{ maxWidth: '320px', minWidth: '250px', fontFamily: 'Arial, sans-serif' }}>
-      <h3 style={{ margin: '0 0 10px 0', color: '#333' }}>{title || eventType}</h3>
-      {expectedEndTime && (
-        <div style={{ marginBottom: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Expected to end on</div>
-          <div style={{ background: '#e3f2fd', color: '#1976d2', padding: '4px 8px', borderRadius: '4px', display: 'inline-block', fontSize: '14px' }}>
-            {expectedEndTime}
-          </div>
-        </div>
-      )}
-      {affectedDirection && (
-        <div style={{ marginBottom: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Affected Direction</div>
-          <div style={{ background: '#fff3e0', color: '#f57c00', padding: '4px 8px', borderRadius: '4px', display: 'inline-block', fontSize: '14px' }}>
-            {affectedDirection}
-          </div>
-        </div>
-      )}
-      {details && details.length > 0 && (
-        <div style={{ marginBottom: '10px' }}>
-          {details.map((detail, index) => (
-            <div key={index} style={{ marginBottom: '4px' }}>• {detail}</div>
-          ))}
-        </div>
-      )}
-      {fullDescription && (
-        <div style={{ marginTop: '10px', color: '#555' }}>{fullDescription}</div>
-      )}
-      {description && !fullDescription && (
-        <div style={{ marginTop: '10px', color: '#555' }}>{description}</div>
-      )}
-    </div>
-  );
-
   return (
     <Marker position={[coordinates.lat, coordinates.lng]} icon={customIcon}>
-      <Popup>{popupContent}</Popup>
+      <Popup
+        // leave space at top for UI controls (px)
+        autoPanPaddingTopLeft={[0, 80] as any}
+        // small overall padding fallback
+        autoPanPadding={[12, 12] as any}
+        className="leaflet-popup-theme"
+      >
+        <PopupContent
+          title={title || eventType}
+          expectedEndTime={expectedEndTime}
+          affectedDirection={affectedDirection}
+          details={details}
+          description={fullDescription || description}
+        />
+      </Popup>
     </Marker>
   );
 };

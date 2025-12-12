@@ -2,3 +2,174 @@
 
 @source "../../../packages/ui/src";
 
+/* Ensure app UI overlays (filters, tables) appear above Leaflet map panes.
+	Leaflet creates a set of pane elements with z-indexes; override the map
+	panes to sit lower than app UI. Use conservative values to avoid breaking
+	popups/markers; we keep marker/popup panes unchanged but lower map/overlay panes. */
+.leaflet-container,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane {
+  z-index: 0 !important;
+}
+
+/* Keep the popup and marker panes able to render above map tiles, but still
+	below our app-level UI which uses higher z-index. */
+
+/* Popup theme overrides for Leaflet popups when using the Popup `className` prop
+	(we add `className="leaflet-popup-theme"` to react-leaflet <Popup />) */
+.leaflet-popup-theme .leaflet-popup-content-wrapper {
+	background: #ffffff;
+	color: #0f172a;
+	border-radius: .5rem;
+	padding: 0; /* remove Leaflet default padding so inner content can control spacing */
+	box-shadow: 0 8px 20px rgba(2,6,23,0.12);
+}
+.leaflet-popup-theme .leaflet-popup-tip {
+	background: #ffffff;
+}
+.leaflet-popup-theme .leaflet-popup-close-button {
+	color: #0f172a;
+}
+
+/* Force the triangular tip (implemented with CSS borders) to match the wrapper
+	 since some Leaflet themes use border-color rather than background. */
+.leaflet-popup-theme .leaflet-popup-tip,
+.leaflet-popup-theme .leaflet-popup-tip-container {
+	border-top-color: #ffffff !important;
+}
+
+/* Make the close button inherit color and remove default background so it
+	 follows the theme. Use !important to override Leaflet's rules when needed. */
+.leaflet-popup-theme .leaflet-popup-close-button {
+	color: #0f172a !important;
+	background: transparent !important;
+	opacity: 0.9;
+}
+.leaflet-popup-theme .leaflet-popup-close-button:hover {
+	opacity: 1;
+}
+
+.dark .leaflet-popup-theme .leaflet-popup-content-wrapper {
+	background: #0f172a; /* slate-800 */
+	color: #e6edf3; /* light text */
+	padding: 0; /* remove Leaflet default padding in dark mode too */
+	border: 1px solid rgba(255,255,255,0.04);
+}
+.dark .leaflet-popup-theme .leaflet-popup-tip {
+	background: #0f172a;
+}
+.dark .leaflet-popup-theme .leaflet-popup-close-button {
+	color: #cbd5e1;
+}
+
+/* Dark mode: ensure the tip border and close button color are applied */
+.dark .leaflet-popup-theme .leaflet-popup-tip,
+.dark .leaflet-popup-theme .leaflet-popup-tip-container {
+	border-top-color: #0f172a !important;
+}
+.dark .leaflet-popup-theme .leaflet-popup-close-button {
+	color: #cbd5e1 !important;
+	background: transparent !important;
+}
+
+/* Fallback/global overrides: ensure tip and close button colors apply even if
+	 className isn't present or Leaflet structure differs. These are targeted
+	 but wider-scoped to guarantee consistency. */
+.leaflet-popup .leaflet-popup-tip {
+	border-top-color: #ffffff !important;
+}
+.dark .leaflet-popup .leaflet-popup-tip {
+	border-top-color: #0f172a !important;
+}
+.leaflet-popup .leaflet-popup-close-button {
+	color: #0f172a !important;
+	background: transparent !important;
+}
+.dark .leaflet-popup .leaflet-popup-close-button {
+	color: #cbd5e1 !important;
+	background: transparent !important;
+}
+
+/* Remove any default outline/shadow on the tip to match wrapper */
+.leaflet-popup .leaflet-popup-tip {
+	box-shadow: none !important;
+}
+
+/* Very high-specificity fallback: target tip pseudo-elements and containers
+	 to ensure the triangular pointer matches popup wrapper color in all browsers
+	 and all Leaflet versions (cover ::before/::after if used). */
+.leaflet-popup-tip,
+.leaflet-popup-tip::before,
+.leaflet-popup-tip::after,
+.leaflet-popup .leaflet-popup-tip,
+.leaflet-popup .leaflet-popup-tip::before,
+.leaflet-popup .leaflet-popup-tip::after,
+.leaflet-popup-theme .leaflet-popup-tip,
+.leaflet-popup-theme .leaflet-popup-tip::before,
+.leaflet-popup-theme .leaflet-popup-tip::after {
+	background: #ffffff !important;
+	border-top-color: #ffffff !important;
+	box-shadow: none !important;
+}
+
+html.dark .leaflet-popup-tip,
+html.dark .leaflet-popup-tip::before,
+html.dark .leaflet-popup-tip::after,
+html.dark .leaflet-popup .leaflet-popup-tip,
+html.dark .leaflet-popup .leaflet-popup-tip::before,
+html.dark .leaflet-popup .leaflet-popup-tip::after,
+html.dark .leaflet-popup-theme .leaflet-popup-tip,
+html.dark .leaflet-popup-theme .leaflet-popup-tip::before,
+html.dark .leaflet-popup-theme .leaflet-popup-tip::after {
+	background: #0f172a !important;
+	border-top-color: #0f172a !important;
+	box-shadow: none !important;
+}
+
+/* Close button: ensure every state and pseudo-state inherits color and
+	 is visible in both themes. */
+.leaflet-popup-close-button,
+.leaflet-popup .leaflet-popup-close-button,
+.leaflet-popup a.leaflet-popup-close-button {
+	color: #0f172a !important;
+	background: transparent !important;
+	border: 0 !important;
+	text-shadow: none !important;
+}
+html.dark .leaflet-popup-close-button,
+html.dark .leaflet-popup .leaflet-popup-close-button,
+html.dark .leaflet-popup a.leaflet-popup-close-button {
+	color: #cbd5e1 !important;
+}
+
+/* Also cover focus/hover/active states */
+.leaflet-popup-close-button:hover,
+.leaflet-popup-close-button:focus,
+.leaflet-popup-close-button:active,
+.leaflet-popup .leaflet-popup-close-button:hover,
+.leaflet-popup .leaflet-popup-close-button:focus {
+	opacity: 1 !important;
+}
+
+.leaflet-marker-pane,
+.leaflet-popup-pane {
+  z-index: 200 !important;
+}
+
+/* Ensure the inner Leaflet content container has no extra padding so
+	 our `PopupContent` component's `p-3` fills the popup width. */
+.leaflet-popup-theme .leaflet-popup-content {
+	padding: 0;
+	margin: 0;
+}
+.dark .leaflet-popup-theme .leaflet-popup-content {
+	padding: 0;
+	margin: 0;
+}
+
+/* If an element still appears under the map, increase panel z-index in the UI
+	or let me implement portals for dropdowns so they render outside the map DOM. */
+
+

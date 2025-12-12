@@ -8,7 +8,8 @@
     "./events-viewer": "./src/events-viewer/index.ts",
     "./layout": "./src/layout/index.ts",
     "./users": "./src/users/index.ts",
-    "./data/*": "./src/data/*"
+    "./data/*": "./src/data/*",
+    "./modal": "./src/modal.tsx"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
@@ -29,10 +30,13 @@
     "typescript": "5.9.2"
   },
   "dependencies": {
+    "@types/leaflet.markercluster": "^1.5.6",
     "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "react-leaflet-cluster": "^4.0.0"
   },
   "peerDependencies": {
     "next": ">=14.0.0"
