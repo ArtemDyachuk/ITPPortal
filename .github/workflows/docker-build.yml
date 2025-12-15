@@ -31,7 +31,7 @@ jobs:
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push Back image
+    - name: Build and push API image
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -39,7 +39,7 @@ jobs:
         push: true
         tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/back:latest
 
-    - name: Build and push Web image
+    - name: Build and push Front End image
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -61,10 +61,16 @@ jobs:
             "if ! command -v unzip >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y unzip; fi",
             "if ! command -v aws >/dev/null 2>&1; then curl -s https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip && unzip -q /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install; fi",
             "AWS_REGION=${{ env.AWS_REGION }} aws ecr get-login-password --region ${{ env.AWS_REGION }} | sudo docker login --username AWS --password-stdin ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com",
+            # Backend (API)
             "sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/back:latest",
             "sudo docker stop itp-back || true",
             "sudo docker rm itp-back || true",
             "sudo docker run -d --name itp-back --restart always -p 3000:3000 ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/back:latest",
+            # Frontend (Web)
+            "sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/front:latest",
+            "sudo docker stop itp-front || true",
+            "sudo docker rm itp-front || true",
+            "sudo docker run -d --name itp-front --restart always -p 80:4201 ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/front:latest",
             "echo Deployment completed"
           ]' \
           --query "Command.CommandId" \
