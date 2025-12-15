@@ -1,5 +1,7 @@
-'use client';
+"use client";
 
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Map, POI } from '../../../../map';
 import { CriticalEvent } from '../../../types';
 
@@ -14,7 +16,27 @@ export default function EventDetailsModal({
   isOpen,
   onClose,
 }: EventDetailsModalProps) {
-  if (!isOpen) return null;
+  // avoid rendering on server / before mount
+  const [mounted, setMounted] = useState(false);
+  const portalElRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    const el = document.createElement('div');
+    el.setAttribute('data-portal', 'event-details-modal');
+    document.body.appendChild(el);
+    portalElRef.current = el;
+
+    return () => {
+      setMounted(false);
+      if (portalElRef.current && portalElRef.current.parentNode) {
+        portalElRef.current.parentNode.removeChild(portalElRef.current);
+      }
+      portalElRef.current = null;
+    };
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   // Parse coordinates - handle string format "lat, lng"
   const coords = event.coordinates
@@ -34,10 +56,12 @@ export default function EventDetailsModal({
     return colors[severity] || '#6b7280';
   };
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 flex items-center justify-center z-50 bg-gray-50/40 dark:bg-slate-950/60 backdrop-blur-[2px]"
+      className="fixed inset-0 flex items-center justify-center z-[99999] bg-gray-50/40 dark:bg-slate-950/60 backdrop-blur-[2px]"
       onClick={onClose}
+      // Add Safari-compatible backdrop filter
+      style={{ WebkitBackdropFilter: 'blur(2px)', backdropFilter: 'blur(2px)' }}
     >
       <div
         className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col overflow-hidden"
@@ -149,4 +173,6 @@ export default function EventDetailsModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, portalElRef.current ?? document.body);
 }
