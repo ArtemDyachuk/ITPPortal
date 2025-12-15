@@ -31,8 +31,15 @@ jobs:
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
-      run: |
-        aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push Back image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./apps/api/Dockerfile
+        push: true
+        tags: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/itp-monorepo/back:latest
 
     - name: Build and push Web image
       uses: docker/build-push-action@v5
