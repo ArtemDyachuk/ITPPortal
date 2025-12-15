@@ -52,7 +52,7 @@ jobs:
     - name: Deploy to EC2 via SSM
       run: |
         COMMAND_ID=$(aws ssm send-command \
-          --instance-ids "i-058d2b6e689845497" \
+          --instance-ids "i-03062914a67a9958e" \
           --document-name "AWS-RunShellScript" \
           --parameters 'commands=[
             "cd /home/ec2-user/app",
