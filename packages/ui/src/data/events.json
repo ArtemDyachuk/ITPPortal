@@ -8,7 +8,7 @@
     "city": "Dallas",
     "county": "Dallas",
     "severity": "Critical",
-    "startDate": "2024-12-01",
+    "startDate": "2024-12-02",
     "endDate": "2025-06-30",
     "workType": "Pavement Resurfacing",
     "affectedLanes": "2 lanes northbound",
@@ -281,7 +281,7 @@
   {
     "id": "DMG-I35W-001",
     "type": "Damage",
-    "name": "Guardrail Damage on I-35W",
+    "name": "Guardrail Damage on I-35W-Test",
     "description": "Damaged guardrail from previous accident on I-35W northbound near Fort Worth",
     "road": "Interstate 35W (I-35W)",
     "city": "Fort Worth",
